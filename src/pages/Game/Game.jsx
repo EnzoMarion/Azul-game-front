@@ -1,22 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { Stone } from '../../components/Stones';
-import { initGame, pickFromFactory, pickFromCenter, placeStones } from '../../store/gameSlice';
 import { STONE_TYPES } from '../../constants';
 import styles from './Game.module.scss';
 import { Button } from '../../components/Button';
+import socket, { myPlayerIndex } from '../../socket';
 
 const Game = () => {
-    const dispatch = useDispatch();
     const navigate = useNavigate();
     const [showBag, setShowBag] = useState(false);
-    const { factories, center, players, currentPlayerId, heldStones, gameState, bag } = useSelector(state => state.game);
+    const [game, setGame] = useState(null);
 
-    useEffect(() => { if (players.length === 0) dispatch(initGame()); }, [dispatch, players]);
+    useEffect(() => {
+        socket.emit('request_state');
+        socket.on('game_update', (state) => setGame(state));
+        return () => socket.off('game_update');
+    }, []);
 
-    if (players.length === 0) return null;
+    if (!game) return <p>Chargement...</p>;
 
+    const { factories, center, players, currentPlayerId, heldStones, gameState, bag } = game;
     const bagStats = (bag || []).reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {});
 
     const WALL_ORDER = [
@@ -26,6 +29,10 @@ const Game = () => {
         [STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND],
         [STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE],
     ];
+
+    const myPlayer = players[myPlayerIndex - 1];
+    const opponentPlayer = players[myPlayerIndex === 1 ? 1 : 0];
+    const isMyTurn = myPlayer && currentPlayerId === myPlayer.id;
 
     if (gameState === "GAME_OVER") {
         const sorted = [...players].sort((a, b) => b.score - a.score);
@@ -60,10 +67,60 @@ const Game = () => {
         );
     }
 
+    const renderPlayerBoard = (p, isMe) => (
+        <div key={p.id} className={`${styles.playerBoard} ${currentPlayerId === p.id ? styles.active : ''}`}>
+            <h3>
+                {isMe ? `⭐ Vous — Joueur ${myPlayerIndex}` : `👤 Adversaire — Joueur ${myPlayerIndex === 1 ? 2 : 1}`}
+                {' '}| Score: {p.score}
+                {isMyTurn && isMe && <span style={{color: 'green', marginLeft: '8px'}}>← Votre tour</span>}
+            </h3>
+            <div className={styles.boardGrid}>
+                <div className={styles.patterns}>
+                    {p.patternLines.map((line, i) => {
+                        const colIndex = heldStones ? WALL_ORDER[i].indexOf(heldStones.type) : -1;
+                        const isInvalid = heldStones && (
+                            p.wall[i][colIndex] !== null ||
+                            line.some(s => s !== null && s !== heldStones.type)
+                        );
+                        return (
+                            <div key={i}
+                                 className={`${styles.line} ${isInvalid ? styles.invalid : ''}`}
+                                 onClick={() => isMe && heldStones && isMyTurn && socket.emit('place_stones', { lineIndex: i })}
+                            >
+                                <div className={styles.lineSlots}>
+                                    {line.map((s, j) => <div key={j} className={styles.slot}>{s && <Stone stoneType={s} size="small" />}</div>)}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className={styles.wall}>
+                    {p.wall.map((row, i) => (
+                        <div key={i} className={styles.row}>
+                            {row.map((cell, j) => (
+                                <div key={j} className={`${styles.cell} ${cell ? styles.filled : ''}`}>
+                                    {cell ? <Stone stoneType={cell} size="small" /> : <div className={styles.ghost}><Stone stoneType={WALL_ORDER[i][j]} size="small" /></div>}
+                                </div>
+                            ))}
+                        </div>
+                    ))}
+                </div>
+            </div>
+            <div className={styles.floor}>
+                {Array(7).fill(null).map((_, i) => (
+                    <div key={i} className={styles.floorSlot}>
+                        <span className={styles.penalty}>{-1 * (i < 2 ? 1 : i < 5 ? 2 : 3)}</span>
+                        {p.floorLine[i] === "FIRST_PLAYER" ? <div className={styles.firstMarker}>1st</div> : p.floorLine[i] && <Stone stoneType={p.floorLine[i]} size="small" />}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     return (
         <div className={styles.gameContainer}>
             <header className={styles.header}>
-                <h1>TOUR : JOUEUR {currentPlayerId}</h1>
+                <h1>{isMyTurn ? '🟢 Votre tour' : "⏳ Tour de l'adversaire"}</h1>
                 <Button size="small" onClick={() => setShowBag(true)}>
                     👜 Voir le Sac ({bag?.length || 0})
                 </Button>
@@ -94,61 +151,26 @@ const Game = () => {
                     <div className={styles.factories}>
                         {factories.map((stones, i) => (
                             <div key={i} className={styles.factory}>
-                                {stones.map((s, j) => <div key={j} onClick={() => !heldStones && dispatch(pickFromFactory({ factoryIndex: i, stoneType: s }))}><Stone stoneType={s} size="medium" /></div>)}
+                                {stones.map((s, j) => (
+                                    <div key={j} onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_factory', { factoryIndex: i, stoneType: s })}>
+                                        <Stone stoneType={s} size="medium" />
+                                    </div>
+                                ))}
                             </div>
                         ))}
                     </div>
                     <div className={styles.center}>
-                        {center.map((s, i) => <div key={i} onClick={() => !heldStones && dispatch(pickFromCenter({ stoneType: s }))}><Stone stoneType={s} size="small" /></div>)}
+                        {center.map((s, i) => (
+                            <div key={i} onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_center', { stoneType: s })}>
+                                <Stone stoneType={s} size="small" />
+                            </div>
+                        ))}
                     </div>
                 </section>
 
                 <section className={styles.playersContainer}>
-                    {players.map(p => (
-                        <div key={p.id} className={`${styles.playerBoard} ${currentPlayerId === p.id ? styles.active : ''}`}>
-                            <h3>Joueur {p.id} | Score: {p.score}</h3>
-                            <div className={styles.boardGrid}>
-                                <div className={styles.patterns}>
-                                    {p.patternLines.map((line, i) => {
-                                        const colIndex = heldStones ? WALL_ORDER[i].indexOf(heldStones.type) : -1;
-                                        const isInvalid = heldStones && (
-                                            p.wall[i][colIndex] !== null ||
-                                            line.some(s => s !== null && s !== heldStones.type)
-                                        );
-                                        return (
-                                            <div key={i}
-                                                 className={`${styles.line} ${isInvalid ? styles.invalid : ''}`}
-                                                 onClick={() => heldStones && currentPlayerId === p.id && dispatch(placeStones({ lineIndex: i }))}
-                                            >
-                                                <div className={styles.lineSlots}>
-                                                    {line.map((s, j) => <div key={j} className={styles.slot}>{s && <Stone stoneType={s} size="small" />}</div>)}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className={styles.wall}>
-                                    {p.wall.map((row, i) => (
-                                        <div key={i} className={styles.row}>
-                                            {row.map((cell, j) => (
-                                                <div key={j} className={`${styles.cell} ${cell ? styles.filled : ''}`}>
-                                                    {cell ? <Stone stoneType={cell} size="small" /> : <div className={styles.ghost}><Stone stoneType={WALL_ORDER[i][j]} size="small" /></div>}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            <div className={styles.floor}>
-                                {Array(7).fill(null).map((_, i) => (
-                                    <div key={i} className={styles.floorSlot}>
-                                        <span className={styles.penalty}>{-1 * (i < 2 ? 1 : i < 5 ? 2 : 3)}</span>
-                                        {p.floorLine[i] === "FIRST_PLAYER" ? <div className={styles.firstMarker}>1st</div> : p.floorLine[i] && <Stone stoneType={p.floorLine[i]} size="small" />}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
+                    {myPlayer && renderPlayerBoard(myPlayer, true)}
+                    {opponentPlayer && renderPlayerBoard(opponentPlayer, false)}
                 </section>
             </main>
         </div>
