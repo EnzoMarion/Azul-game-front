@@ -1,0 +1,79 @@
+@use "../../styles/base/variables" as *;
+@use "../../styles/base/mixins" as *;
+
+.stone {
+  position: relative;
+  border-radius: $radius-sm;
+  transition: all $transition-normal ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.3) 0%,
+      transparent 70%
+    );
+    border-radius: $radius-sm;
+    pointer-events: none;
+    animation: shine 2s ease-in-out infinite;
+  }
+}
+
+@keyframes shine {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.stoneImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+  transition: filter $transition-normal ease;
+}
+
+.stone:hover .stoneImage {
+  filter: brightness(1.2);
+}
+
+.glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: $radius-sm;
+  opacity: 0;
+  filter: blur(10px);
+  transition: opacity $transition-normal ease;
+  z-index: -1;
+}
+
+.stone:hover .glow {
+  opacity: 0.6;
+}
+
+// Sizes
+.small {
+  width: 30px;
+  height: 30px;
+}
+
+.medium {
+  width: 40px;
+  height: 40px;
+}
+
+.large {
+  width: 60px;
+  height: 60px;
+}

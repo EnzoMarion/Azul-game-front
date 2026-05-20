@@ -1,0 +1,79 @@
+@use "../../styles/base/variables" as *;
+@use "../../styles/base/mixins" as *;
+
+.box {
+  background: rgba($bg-primary, 0.5);
+  padding: $spacing-md;
+  margin: $spacing-sm 0;
+  transform: skewX(-4deg) !important;
+
+  > * {
+    transform: skewX(4deg);
+  }
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: $color-primary;
+  margin: 0 0 $spacing-sm 0;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.content {
+  p {
+    font-size: 14px;
+    color: $text-secondary;
+    line-height: 1.5;
+    margin: 0 0 $spacing-xs 0;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      padding-left: $spacing-md;
+      position: relative;
+      margin-bottom: $spacing-xs;
+      font-size: 14px;
+      color: $text-secondary;
+      line-height: 1.5;
+
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 6px;
+        height: 6px;
+        background: $color-primary;
+        border-radius: 50%;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      strong {
+        color: $text-primary;
+      }
+    }
+  }
+}
+
+@include respond-to("mobile") {
+  .box {
+    padding: $spacing-sm;
+  }
+
+  .title {
+    font-size: 13px;
+  }
+}

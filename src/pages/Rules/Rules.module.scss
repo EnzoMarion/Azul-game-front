@@ -1,0 +1,699 @@
+@use "../../styles/base/variables" as *;
+@use "../../styles/base/mixins" as *;
+
+.stoneNameGang {
+  min-height: 2.2em;
+  text-align: center;
+  font-size: 1.15rem;
+  color: $text-secondary;
+  margin-top: 1.2em;
+  text-shadow: 0 2px 8px $bg-primary;
+  transition: opacity 0.2s;
+  opacity: 1;
+}
+
+.stoneNameWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 1.5em;
+}
+
+.stoneName {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  color: #fff;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px #000a;
+  font-weight: 500;
+  text-transform: capitalize;
+  opacity: 0;
+  transition: opacity 0.25s 0.15s;
+  pointer-events: none;
+}
+
+.stoneItem:hover .stoneName,
+.stoneItem:focus-within .stoneName {
+  opacity: 1;
+}
+
+.rules {
+  min-height: 100vh;
+  padding: $spacing-xl;
+  background: $bg-primary;
+  overflow-y: auto;
+  position: relative;
+}
+
+.backArrow {
+  position: fixed;
+  top: $spacing-lg;
+  left: $spacing-lg;
+  width: 48px;
+  height: 48px;
+  background: $bg-secondary;
+  border: 1px solid rgba($text-secondary, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  @include flex-center;
+  transition: all 0.3s ease;
+  z-index: 100;
+
+  svg {
+    width: 24px;
+    height: 24px;
+    color: $text-primary;
+    transition: all 0.3s ease;
+  }
+
+  &:hover {
+    background: $color-primary;
+    border-color: $color-primary;
+
+    svg {
+      color: $bg-primary;
+      transform: translateX(-2px);
+    }
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  @include flex-column;
+  gap: $spacing-xl;
+  @include fade-in;
+}
+
+.header {
+  text-align: center;
+  @include flex-column;
+  gap: $spacing-md;
+  padding-bottom: $spacing-lg;
+  border-bottom: 1px solid rgba($text-secondary, 0.2);
+}
+
+.title {
+  font-size: clamp(36px, 6vw, 56px);
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: $text-primary;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  font-size: 18px;
+  color: $text-secondary;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+.story {
+  color: $text-secondary;
+  line-height: 1.8;
+  font-size: 16px;
+
+  strong {
+    color: $color-primary;
+    font-weight: 600;
+  }
+}
+
+.legendContent {
+  display: flex;
+  gap: $spacing-lg;
+  align-items: center;
+
+  @include respond-to("mobile") {
+    flex-direction: column-reverse;
+  }
+}
+
+.legendText {
+  flex: 1;
+  @include flex-column;
+  gap: $spacing-md;
+}
+
+.thanosContainer {
+  flex-shrink: 0;
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -20px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(#1a1a2e, 0.95) 0%,
+      rgba(#16213e, 0.6) 35%,
+      rgba(#0f0f23, 0.3) 55%,
+      transparent 75%
+    );
+    filter: blur(8px);
+    z-index: 0;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, white 0%, transparent 100%),
+      radial-gradient(
+        1px 1px at 40% 70%,
+        rgba(white, 0.8) 0%,
+        transparent 100%
+      ),
+      radial-gradient(1.5px 1.5px at 60% 20%, white 0%, transparent 100%),
+      radial-gradient(
+        1px 1px at 80% 50%,
+        rgba(white, 0.7) 0%,
+        transparent 100%
+      ),
+      radial-gradient(
+        1px 1px at 30% 80%,
+        rgba(white, 0.6) 0%,
+        transparent 100%
+      ),
+      radial-gradient(1.5px 1.5px at 70% 85%, white 0%, transparent 100%),
+      radial-gradient(
+        1px 1px at 15% 55%,
+        rgba(white, 0.8) 0%,
+        transparent 100%
+      ),
+      radial-gradient(1px 1px at 85% 25%, rgba(white, 0.7) 0%, transparent 100%);
+    z-index: 0;
+  }
+}
+
+.thanosImage {
+  position: relative;
+  z-index: 1;
+  width: 200px;
+  height: auto;
+  filter: saturate(0.5) brightness(0.9) drop-shadow(0 0 15px rgba(0, 0, 0, 0.5));
+
+  @include respond-to("mobile") {
+    width: 150px;
+  }
+}
+
+.stonesIntro {
+  text-align: center;
+  color: $text-secondary;
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+.stonesShowcase {
+  position: relative;
+  @include flex-column-center;
+}
+
+.gauntletWrapper {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: -20px;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(gold, 0.2) 0%,
+      transparent 70%
+    );
+    filter: blur(20px);
+    z-index: 0;
+  }
+}
+
+.gauntletImage {
+  position: relative;
+  z-index: 1;
+  width: 200px;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(gold, 0.4));
+
+  @include respond-to("mobile") {
+    width: 140px;
+  }
+}
+
+.stoneItem {
+  position: absolute;
+  cursor: pointer;
+
+  &[data-stone="SPACE"] {
+    left: 79px;
+    top: 9%;
+
+    &:hover {
+      transform: scale(1.1);
+      z-index: 2;
+    }
+  }
+
+  &[data-stone="MIND"] {
+    left: 23%;
+    top: 12%;
+
+    svg,
+    img {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      transform: scale(1.1);
+      z-index: 2;
+    }
+  }
+
+  &[data-stone="REALITY"] {
+    left: 31%;
+    top: 10%;
+
+    &:hover {
+      transform: scale(1.1);
+      z-index: 2;
+    }
+  }
+
+  &[data-stone="POWER"] {
+    left: 50%;
+    top: 10%;
+
+    svg,
+    img {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      transform: scale(1.1);
+      z-index: 2;
+    }
+  }
+
+  &[data-stone="TIME"] {
+    left: 64%;
+    top: 21%;
+
+    svg,
+    img {
+      width: 20px;
+      height: 20px;
+    }
+
+    &:hover {
+      transform: scale(1.1);
+      z-index: 2;
+    }
+  }
+}
+
+.content {
+  @include flex-column;
+  gap: $spacing-xl;
+}
+
+.section {
+  @include flex-column;
+  gap: $spacing-md;
+  background: $bg-secondary;
+  padding: $spacing-lg;
+  border: 2px solid $color-primary;
+  box-shadow:
+    0 4px 0 rgba($color-primary, 0.2),
+    0 4px 15px rgba(0, 0, 0, 0.3);
+  transform: skewX(-2deg);
+  position: relative;
+
+  > * {
+    transform: skewX(2deg);
+  }
+
+  p {
+    color: $text-secondary;
+    line-height: 1.75;
+    font-size: 16px;
+  }
+}
+
+.sectionTitle {
+  font-size: 24px;
+  font-weight: 600;
+  color: $color-primary;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: $spacing-xs;
+}
+
+.phase {
+  background: rgba($bg-primary, 0.5);
+  padding: $spacing-md;
+  margin-top: $spacing-sm;
+  @include flex-column;
+  gap: $spacing-sm;
+  transform: skewX(-4deg) !important;
+
+  > * {
+    transform: skewX(4deg);
+  }
+
+  p {
+    margin-bottom: $spacing-xs;
+  }
+}
+
+.phaseTitle {
+  font-size: 18px;
+  font-weight: 600;
+  color: $text-primary;
+  letter-spacing: 1px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  @include flex-column;
+  gap: $spacing-sm;
+
+  li {
+    color: $text-secondary;
+    line-height: 1.6;
+    padding-left: $spacing-lg;
+    position: relative;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 8px;
+      height: 8px;
+      background: $color-primary;
+      border-radius: 50%;
+      @include glow($color-primary, 0.5, 4px);
+    }
+
+    strong {
+      color: $text-primary;
+      font-weight: 600;
+    }
+  }
+}
+
+.setupGrid {
+  display: flex;
+  justify-content: center;
+  gap: $spacing-lg;
+  margin: $spacing-md 0;
+  flex-wrap: wrap;
+}
+
+.setupItem {
+  @include flex-column-center;
+  background: rgba($bg-primary, 0.5);
+  padding: $spacing-md $spacing-lg;
+  border: 1px solid rgba($color-primary, 0.2);
+  min-width: 100px;
+  transform: skewX(-4deg) !important;
+
+  > * {
+    transform: skewX(4deg);
+  }
+}
+
+.setupNumber {
+  font-size: 32px;
+  font-weight: 700;
+  color: $color-primary;
+  line-height: 1;
+}
+
+.setupLabel {
+  font-size: 12px;
+  color: $text-secondary;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.setupValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: $text-primary;
+  margin-top: $spacing-xs;
+}
+
+.boardAreas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.phaseHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.phaseNumber {
+  @include flex-center;
+  width: 32px;
+  height: 28px;
+  background: $color-primary;
+  color: $bg-primary;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+  transform: skewX(-8deg);
+
+  span {
+    display: block;
+    transform: skewX(8deg);
+  }
+}
+
+.phaseNote {
+  font-style: italic;
+  font-size: 14px;
+  margin-top: $spacing-sm;
+  padding-top: $spacing-sm;
+  border-top: 1px dashed rgba($text-secondary, 0.2);
+}
+
+.penaltyRow {
+  display: flex;
+  gap: $spacing-xs;
+  justify-content: center;
+  margin: $spacing-sm 0;
+}
+
+.penalty {
+  @include flex-center;
+  width: 36px;
+  height: 36px;
+  background: rgba($color-warning, 0.2);
+  border: 1px solid $color-warning;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 14px;
+  color: $color-warning;
+}
+
+.penaltyNote {
+  font-size: 12px;
+  color: $text-secondary;
+  text-align: center;
+  font-style: italic;
+}
+
+.scoringExample {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: $spacing-md;
+  margin: $spacing-md 0;
+}
+
+.scoringCase {
+  background: rgba($bg-primary, 0.5);
+  padding: $spacing-md;
+  text-align: center;
+  transform: skewX(-4deg) !important;
+
+  > * {
+    transform: skewX(4deg);
+  }
+
+  p {
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.scoringPoints {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: $color-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.videoContainer {
+  margin-top: $spacing-md;
+}
+
+.videoLink {
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  background: rgba($bg-primary, 0.5);
+  padding: $spacing-md;
+  border: 1px solid rgba($text-secondary, 0.2);
+  text-decoration: none;
+  color: $text-primary;
+  transition: all 0.3s ease;
+  transform: skewX(-4deg) !important;
+
+  > * {
+    transform: skewX(4deg);
+  }
+
+  &:hover {
+    border-color: #ff0000;
+    background: rgba(#ff0000, 0.1);
+
+    .thumbnailImage {
+      filter: grayscale(0%);
+    }
+
+    .playOverlay {
+      background: rgba(#ff0000, 0.4);
+    }
+  }
+
+  span {
+    font-weight: 600;
+    font-size: 16px;
+  }
+}
+
+.videoThumbnail {
+  position: relative;
+  width: 160px;
+  height: 90px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  transform: skewX(-4deg);
+}
+
+.thumbnailImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(100%);
+  transition: all 0.3s ease;
+  transform: skewX(4deg) scale(1.1);
+}
+
+.playOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  @include flex-center;
+  background: rgba($bg-primary, 0.5);
+  transition: all 0.3s ease;
+  transform: skewX(4deg);
+}
+
+.playIcon {
+  width: 28px;
+  height: 28px;
+  color: white;
+}
+
+.actions {
+  @include flex-column-center;
+  padding-top: $spacing-lg;
+  border-top: 1px solid rgba($text-secondary, 0.2);
+
+  button {
+    min-width: 250px;
+  }
+}
+
+@include respond-to("mobile") {
+  .rules {
+    padding: $spacing-md;
+  }
+
+  .container {
+    gap: $spacing-lg;
+  }
+
+  .section {
+    padding: $spacing-md;
+  }
+
+  .sectionTitle {
+    font-size: 20px;
+  }
+
+  .phase {
+    padding: $spacing-sm;
+  }
+
+  .setupGrid {
+    gap: $spacing-sm;
+  }
+
+  .setupItem {
+    padding: $spacing-sm $spacing-md;
+    min-width: 80px;
+  }
+
+  .setupNumber {
+    font-size: 24px;
+  }
+
+  .boardAreas {
+    grid-template-columns: 1fr;
+  }
+
+  .scoringExample {
+    grid-template-columns: 1fr;
+  }
+
+  .penaltyRow {
+    flex-wrap: wrap;
+  }
+
+  .penalty {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .videoLink {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@include respond-to("tablet") {
+  .rules {
+    padding: $spacing-lg;
+  }
+}

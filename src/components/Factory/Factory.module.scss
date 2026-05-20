@@ -1,0 +1,25 @@
+@use "../../styles/base/variables" as *;
+
+.factory {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: rgba($bg-secondary, 0.8);
+  border: 2px solid $color-primary;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  padding: $spacing-md;
+  box-shadow: 0 0 15px rgba($color-primary, 0.2);
+
+  .stoneWrapper {
+    cursor: pointer;
+    transition: transform 0.2s;
+    
+    &:hover {
+      transform: scale(1.1);
+    }
+  }
+}

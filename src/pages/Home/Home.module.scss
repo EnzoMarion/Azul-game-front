@@ -1,0 +1,101 @@
+@use "../../styles/base/variables" as *;
+@use "../../styles/base/mixins" as *;
+
+.home {
+  min-height: 100vh;
+  @include flex-column-center;
+  padding: $spacing-xl;
+  background: $bg-primary;
+}
+
+.container {
+  max-width: 800px;
+  width: 100%;
+  @include flex-column-center;
+  gap: $spacing-xxl;
+  @include fade-in;
+}
+
+.header {
+  text-align: center;
+  @include flex-column;
+  gap: $spacing-lg;
+}
+
+.title {
+  @include flex-column;
+  gap: $spacing-sm;
+
+  .titleMain {
+    font-size: clamp(48px, 8vw, 72px);
+    font-weight: 700;
+    letter-spacing: 8px;
+    color: $text-primary;
+    text-transform: uppercase;
+  }
+
+  .titleSub {
+    font-size: clamp(20px, 3vw, 28px);
+    font-weight: 500;
+    color: $text-secondary;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+}
+
+.subtitle {
+  font-size: 18px;
+  color: $text-secondary;
+  max-width: 500px;
+  line-height: 1.75;
+}
+
+.stonesPreview {
+  display: flex;
+  gap: $spacing-lg;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: $spacing-xl 0;
+
+  > * {
+    @include scale-in;
+
+    @for $i from 1 through 6 {
+      &:nth-child(#{$i}) {
+        animation-delay: #{$i * 0.1}s;
+      }
+    }
+  }
+}
+
+.actions {
+  @include flex-column;
+  gap: $spacing-md;
+  width: 100%;
+  max-width: 400px;
+
+  button {
+    width: 100%;
+  }
+}
+
+.footer {
+  margin-top: $spacing-xl;
+  text-align: center;
+  color: $text-secondary;
+  font-size: 14px;
+}
+
+@include respond-to("mobile") {
+  .home {
+    padding: $spacing-lg;
+  }
+
+  .container {
+    gap: $spacing-xl;
+  }
+
+  .stonesPreview {
+    gap: $spacing-sm;
+  }
+}

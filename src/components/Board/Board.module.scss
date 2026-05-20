@@ -1,0 +1,26 @@
+@use "../../styles/base/variables" as *;
+
+.playerBoard {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-xl;
+    background: rgba($bg-secondary, 0.9);
+    padding: $spacing-lg;
+    border-radius: $radius-lg;
+    border: 1px solid rgba($color-primary, 0.3);
+}
+
+.wallSlot {
+    width: 40px;
+    height: 40px;
+    border: 1px dashed rgba($text-secondary, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    // Style spécifique quand une pierre est placée
+    &.filled {
+        border-style: solid;
+        box-shadow: 0 0 10px currentColor;
+    }
+}

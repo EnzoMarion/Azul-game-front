@@ -1,0 +1,102 @@
+//mixins
+
+@use "sass:color";
+@use "./variables" as *;
+
+// Flexbox helpers
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin flex-column-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+// Position helpers
+@mixin absolute-full {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+// Transitions
+@mixin smooth-transition($property: all) {
+  transition: $property $transition-normal cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// Glow effects
+@mixin glow($color, $opacity: 0.5, $size: 20px) {
+  box-shadow: 0 0 $size rgba($color, $opacity),
+    0 0 ($size * 2) rgba($color, $opacity * 0.5);
+}
+
+@mixin text-glow($color) {
+  text-shadow: 0 0 10px rgba($color, 0.8), 0 0 20px rgba($color, 0.4);
+}
+
+// Animations
+@mixin fade-in {
+  animation: fadeIn 0.6s ease-out;
+}
+
+@mixin scale-in {
+  animation: scaleIn 0.4s ease-out;
+}
+
+// Media queries
+@mixin respond-to($breakpoint) {
+  @if $breakpoint == "mobile" {
+    @media (max-width: $breakpoint-mobile) {
+      @content;
+    }
+  } @else if $breakpoint == "tablet" {
+    @media (min-width: $breakpoint-mobile) and (max-width: 1024px) {
+      @content;
+    }
+  } @else if $breakpoint == "laptop" {
+    @media (min-width: 1024px) {
+      @content;
+    }
+  }
+}
+
+// Keyframes
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
