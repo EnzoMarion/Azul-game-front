@@ -6,84 +6,98 @@ import { STONE_TYPES } from "../../constants";
 import socket from "../../socket";
 import styles from "./Lobby.module.scss";
 
+const PLAYER_CONFIGS = [
+    { count: 2, factories: 5, label: "2 joueurs" },
+    { count: 3, factories: 7, label: "3 joueurs" },
+    { count: 4, factories: 9, label: "4 joueurs" },
+];
+
 const Lobby = () => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [waitingRoomId, setWaitingRoomId] = useState(null);
-    const [pseudo, setPseudo] = useState('');
-    const [pseudoError, setPseudoError] = useState('');
+    const [waitingPlayers, setWaitingPlayers] = useState([]);
+    const [waitingMax, setWaitingMax] = useState(2);
+    const [pseudo, setPseudo] = useState("");
+    const [pseudoError, setPseudoError] = useState("");
+    const [maxPlayers, setMaxPlayers] = useState(2);
+    const [joinError, setJoinError] = useState("");
 
     useEffect(() => {
-        const saved = sessionStorage.getItem('pseudo');
+        const saved = sessionStorage.getItem("pseudo");
         if (saved) setPseudo(saved);
-
-        socket.emit('request_rooms');
+        socket.emit("request_rooms");
 
         const onRoomList = (list) => setRooms(list);
-
-        const onJoinedRoom = (roomId) => {
-            sessionStorage.setItem('roomId', roomId);
+        const onJoinedRoom = (roomId) => { sessionStorage.setItem("roomId", roomId); };
+        const onGameUpdate = (state) => { if (state) navigate("/game"); };
+        const onRoomPlayersUpdate = ({ players, maxPlayers: max }) => {
+            setWaitingPlayers(players);
+            setWaitingMax(max);
+        };
+        const onJoinError = (msg) => {
+            setJoinError(msg);
+            setTimeout(() => setJoinError(""), 3000);
         };
 
-        const onGameUpdate = (state) => {
-            if (state) navigate("/game");
-        };
-
-        socket.on('room_list', onRoomList);
-        socket.on('joined_room', onJoinedRoom);
-        socket.on('game_update', onGameUpdate);
+        socket.on("room_list", onRoomList);
+        socket.on("joined_room", onJoinedRoom);
+        socket.on("game_update", onGameUpdate);
+        socket.on("room_players_update", onRoomPlayersUpdate);
+        socket.on("join_error", onJoinError);
 
         return () => {
-            socket.off('room_list', onRoomList);
-            socket.off('joined_room', onJoinedRoom);
-            socket.off('game_update', onGameUpdate);
+            socket.off("room_list", onRoomList);
+            socket.off("joined_room", onJoinedRoom);
+            socket.off("game_update", onGameUpdate);
+            socket.off("room_players_update", onRoomPlayersUpdate);
+            socket.off("join_error", onJoinError);
         };
     }, [navigate]);
 
     const validatePseudo = () => {
         const trimmed = pseudo.trim();
-        if (!trimmed) {
-            setPseudoError('Entre un pseudo avant de continuer');
-            return null;
-        }
-        if (trimmed.length < 2) {
-            setPseudoError('Le pseudo doit faire au moins 2 caractères');
-            return null;
-        }
-        setPseudoError('');
-        sessionStorage.setItem('pseudo', trimmed);
+        if (!trimmed) { setPseudoError("Entre un pseudo avant de continuer"); return null; }
+        if (trimmed.length < 2) { setPseudoError("Le pseudo doit faire au moins 2 caractères"); return null; }
+        setPseudoError("");
+        sessionStorage.setItem("pseudo", trimmed);
         return trimmed;
     };
 
     const handleCreate = () => {
         const validPseudo = validatePseudo();
         if (!validPseudo) return;
-
-        socket.emit('create_room', { pseudo: validPseudo });
-        socket.once('joined_room', (roomId) => {
+        socket.emit("create_room", { pseudo: validPseudo, maxPlayers });
+        socket.once("joined_room", (roomId) => {
             setWaitingRoomId(roomId);
+            setWaitingPlayers([validPseudo]);
+            setWaitingMax(maxPlayers);
         });
     };
 
     const handleJoin = (roomId) => {
         const validPseudo = validatePseudo();
         if (!validPseudo) return;
-
-        socket.emit('join_room', { roomId, pseudo: validPseudo });
+        setJoinError("");
+        socket.emit("join_room", { roomId, pseudo: validPseudo });
+        socket.once("room_players_update", ({ players, maxPlayers: max }) => {
+            setWaitingRoomId(roomId);
+            setWaitingPlayers(players);
+            setWaitingMax(max);
+        });
     };
 
     const handleRejoin = (roomId) => {
         const validPseudo = validatePseudo();
         if (!validPseudo) return;
-
-        sessionStorage.setItem('roomId', roomId);
-        socket.emit('rejoin_room', { roomId, pseudo: validPseudo });
+        sessionStorage.setItem("roomId", roomId);
+        socket.emit("rejoin_room", { roomId, pseudo: validPseudo });
     };
 
     const handleSpectate = (roomId) => {
-        sessionStorage.setItem('roomId', roomId);
-        sessionStorage.removeItem('pseudo');
-        socket.emit('join_as_spectator', { roomId });
+        sessionStorage.setItem("roomId", roomId);
+        sessionStorage.removeItem("pseudo");
+        socket.emit("join_as_spectator", { roomId });
     };
 
     if (waitingRoomId) {
@@ -102,16 +116,28 @@ const Lobby = () => {
                         <p className={styles.waitingText}>
                             Connecté en tant que <strong>{pseudo.trim()}</strong>
                         </p>
-                        <p className={styles.waitingText}>En attente d'un second joueur…</p>
-                        <div className={styles.dots}>
-                            <span /><span /><span />
+                        <div className={styles.waitingPlayerList}>
+                            {Array.from({ length: waitingMax }).map((_, i) => (
+                                <div
+                                    key={i}
+                                    className={`${styles.waitingPlayerSlot} ${waitingPlayers[i] ? styles.slotFilled : styles.slotEmpty}`}
+                                >
+                                    <span className={waitingPlayers[i] ? styles.playerDot : styles.emptyDot} />
+                                    {waitingPlayers[i] ?? "En attente…"}
+                                </div>
+                            ))}
                         </div>
+                        <p className={styles.waitingText}>
+                            {waitingPlayers.length}/{waitingMax} joueur{waitingMax > 1 ? "s" : ""} — la partie démarre automatiquement
+                        </p>
+                        <div className={styles.dots}><span /><span /><span /></div>
                         <Button
                             variant="ghost"
                             size="small"
                             onClick={() => {
-                                socket.emit('leave_room', { roomId: waitingRoomId });
+                                socket.emit("leave_room", { roomId: waitingRoomId });
                                 setWaitingRoomId(null);
+                                setWaitingPlayers([]);
                             }}
                         >
                             ← Annuler
@@ -122,9 +148,9 @@ const Lobby = () => {
         );
     }
 
-    const availableRooms = rooms.filter(r => r.playerCount < 2 && r.status === 'WAITING');
-    const reconnectableRooms = rooms.filter(r => r.hasDisconnected && r.status !== 'WAITING');
-    const spectateableRooms = rooms.filter(r => r.playerCount === 2 && r.status === 'PLAYING' && !r.hasDisconnected);
+    const availableRooms = rooms.filter(r => r.playerCount < r.maxPlayers && r.status === "WAITING");
+    const reconnectableRooms = rooms.filter(r => r.hasDisconnected && r.status !== "WAITING");
+    const spectateableRooms = rooms.filter(r => r.playerCount === r.maxPlayers && r.status === "PLAYING" && !r.hasDisconnected);
 
     return (
         <div className={styles.lobby}>
@@ -138,32 +164,44 @@ const Lobby = () => {
                 </header>
 
                 <div className={styles.pseudoField}>
-                    <label htmlFor="pseudo" className={styles.pseudoLabel}>
-                        Ton pseudo
-                    </label>
+                    <label htmlFor="pseudo" className={styles.pseudoLabel}>Ton pseudo</label>
                     <input
                         id="pseudo"
                         type="text"
-                        className={`${styles.pseudoInput} ${pseudoError ? styles.inputError : ''}`}
+                        className={`${styles.pseudoInput} ${pseudoError ? styles.inputError : ""}`}
                         placeholder="Entre ton pseudo…"
                         value={pseudo}
                         maxLength={20}
-                        onChange={(e) => {
-                            setPseudo(e.target.value);
-                            if (pseudoError) setPseudoError('');
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                        onChange={(e) => { setPseudo(e.target.value); if (pseudoError) setPseudoError(""); }}
+                        onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                     />
-                    {pseudoError && (
-                        <span className={styles.errorMsg}>{pseudoError}</span>
-                    )}
+                    {pseudoError && <span className={styles.errorMsg}>{pseudoError}</span>}
                 </div>
 
+                <div className={styles.modeSelector}>
+                    <p className={styles.pseudoLabel}>Nombre de joueurs</p>
+                    <div className={styles.modeCards}>
+                        {PLAYER_CONFIGS.map(({ count, factories, label }) => (
+                            <button
+                                key={count}
+                                className={`${styles.modeCard} ${maxPlayers === count ? styles.modeCardActive : ""}`}
+                                onClick={() => setMaxPlayers(count)}
+                                aria-pressed={maxPlayers === count}
+                            >
+                                <span className={styles.modeCardCount}>{count}</span>
+                                <span className={styles.modeCardLabel}>{label}</span>
+                                <span className={styles.modeCardHint}>{factories} fabriques</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {joinError && <p className={styles.joinError}>⚠️ {joinError}</p>}
+
                 <Button variant="primary" size="large" onClick={handleCreate}>
-                    ➕ Créer une nouvelle partie
+                    ➕ Créer une partie à {maxPlayers} joueurs
                 </Button>
 
-                {/* Parties disponibles à rejoindre */}
                 <div className={styles.roomList}>
                     <h3 className={styles.roomListTitle}>Parties disponibles</h3>
                     {availableRooms.length === 0 ? (
@@ -177,7 +215,9 @@ const Lobby = () => {
                                 <div className={styles.roomInfo}>
                                     <span className={styles.roomName}>{room.name}</span>
                                     <span className={styles.roomPlayers}>
-                                        <span className={styles.dot} /> {room.playerCount}/2 — ⏳ En attente
+                                        <span className={styles.dot} />
+                                        {room.playerCount}/{room.maxPlayers} joueur{room.maxPlayers > 1 ? "s" : ""} — ⏳ En attente
+                                        <span className={styles.factoryBadge}>{room.maxPlayers * 2 + 1} fabriques</span>
                                     </span>
                                 </div>
                                 <Button variant="secondary" size="small" onClick={() => handleJoin(room.id)}>
@@ -188,7 +228,6 @@ const Lobby = () => {
                     )}
                 </div>
 
-                {/* Reconnexion possible */}
                 {reconnectableRooms.length > 0 && (
                     <div className={styles.roomList}>
                         <h3 className={styles.roomListTitle}>🔌 Reconnexion possible</h3>
@@ -208,7 +247,6 @@ const Lobby = () => {
                     </div>
                 )}
 
-                {/* Parties en cours — mode spectateur */}
                 {spectateableRooms.length > 0 && (
                     <div className={styles.roomList}>
                         <h3 className={styles.roomListTitle}>👁 Parties en cours</h3>
@@ -217,10 +255,10 @@ const Lobby = () => {
                                 <div className={styles.roomInfo}>
                                     <span className={styles.roomName}>{room.name}</span>
                                     <span className={styles.roomPlayers}>
-                                        <span className={styles.dotPlaying} /> En cours
+                                        <span className={styles.dotPlaying} /> {room.maxPlayers} joueurs — En cours
                                         {room.spectatorCount > 0 && (
                                             <span className={styles.spectatorCount}>
-                                                {' '}— 👁 {room.spectatorCount} spectateur{room.spectatorCount > 1 ? 's' : ''}
+                                                {" "}— 👁 {room.spectatorCount} spectateur{room.spectatorCount > 1 ? "s" : ""}
                                             </span>
                                         )}
                                     </span>

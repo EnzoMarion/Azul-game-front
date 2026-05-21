@@ -148,25 +148,43 @@
     background: rgba(255, 255, 255, 0.02);
 }
 
-// --- PLATEAUX JOUEURS ---
 .playersContainer {
     display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 40px;
+
+    &[data-player-count="2"] {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    &[data-player-count="3"] {
+        grid-template-columns: 1fr 1fr;
+
+        .playerBoard:last-child {
+            grid-column: 1 / -1;
+            max-width: 50%;
+            margin: 0 auto;
+        }
+    }
+
+    &[data-player-count="4"] {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    @media (max-width: 1024px) {
+        grid-template-columns: 1fr !important;
+
+        &[data-player-count="3"] .playerBoard:last-child {
+            max-width: 100%;
+        }
+    }
 }
 
 .playerBoard {
     padding: 25px;
     border-radius: $radius-xl;
     background: rgba($bg-secondary, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-
-    &.active {
-        border: 2px solid $color-primary;
-        box-shadow: 0 0 20px rgba($color-primary, 0.2);
-        background: rgba($bg-secondary, 0.9);
-    }
+    border: 2px solid transparent;
+    transition: border-color 300ms ease, box-shadow 300ms ease;
 
     h3 {
         margin-bottom: 20px;
