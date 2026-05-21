@@ -553,3 +553,59 @@ $tile-size-tablet: 35px;
     font-size: 0.85rem;
     margin-top: 0.75rem;
 }
+
+// Bannière spectateur
+.spectatorBanner {
+    background: color-mix(in oklab, var(--color-blue) 15%, var(--color-surface));
+    color: var(--color-blue);
+    text-align: center;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--color-blue);
+}
+
+.spectatorTurn {
+    color: var(--color-blue);
+    font-weight: 600;
+}
+
+.spectatorNote {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+// Board du joueur actif vu par un spectateur — border pulsante
+.spectatorActive {
+    border: 2px solid var(--color-primary) !important;
+    box-shadow: 0 0 0 4px oklch(from var(--color-primary) l c h / 0.2);
+    animation: activeGlow 1.5s ease-in-out infinite alternate;
+}
+
+.spectatorInactive {
+    border: 2px solid var(--color-border);
+    opacity: 0.85;
+}
+
+@keyframes activeGlow {
+    from { box-shadow: 0 0 0 2px oklch(from var(--color-primary) l c h / 0.15); }
+    to   { box-shadow: 0 0 0 8px oklch(from var(--color-primary) l c h / 0.0); }
+}
+
+// Petit point animé dans le titre du joueur actif
+.activeTurnDot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    margin-left: 0.5rem;
+    animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%       { transform: scale(1.4); opacity: 0.6; }
+}

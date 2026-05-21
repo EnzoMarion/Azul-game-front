@@ -22,11 +22,14 @@ const Game = () => {
     const [rematchVotes, setRematchVotes] = useState(0);
     const [rematchRequested, setRematchRequested] = useState(false);
 
+    const isSpectator = myPlayerIndex === 0;
     useEffect(() => {
         const roomId = sessionStorage.getItem('roomId');
         const pseudo = sessionStorage.getItem('pseudo');
 
-        if (roomId && pseudo) {
+        if (isSpectator) {
+            socket.emit('request_state', { roomId });
+        } else if (roomId && pseudo) {
             socket.emit('rejoin_room', { roomId, pseudo });
         } else {
             socket.emit('request_state', { roomId });
@@ -35,10 +38,12 @@ const Game = () => {
         const onGameUpdate = (state) => {
             setGame(state);
             setOpponentDisconnected(false);
-            setRematchVotes(0);
-            setRematchRequested(false);
+            if (!isSpectator) {
+                setRematchVotes(0);
+                setRematchRequested(false);
+            }
         };
-        const onOpponentDisconnected = () => setOpponentDisconnected(true);
+        const onOpponentDisconnected = () => { if (!isSpectator) setOpponentDisconnected(true); };
         const onRematchVotes = (count) => setRematchVotes(count);
 
         socket.on('game_update', onGameUpdate);
@@ -55,7 +60,9 @@ const Game = () => {
     if (!game) {
         return (
             <div className={styles.loadingScreen}>
-                <p className={styles.loadingText}>Connexion à la partie…</p>
+                <p className={styles.loadingText}>
+                    {isSpectator ? 'Chargement de la partie…' : 'Connexion à la partie…'}
+                </p>
                 <div className={styles.loadingDots}>
                     <span /><span /><span />
                 </div>
@@ -65,15 +72,17 @@ const Game = () => {
 
     const { factories, center, players, currentPlayerId, heldStones, gameState, bag } = game;
     const bagStats = (bag || []).reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {});
-    const myPlayer = players[myPlayerIndex - 1];
-    const opponentPlayer = players[myPlayerIndex === 1 ? 1 : 0];
-    const isMyTurn = myPlayer && currentPlayerId === myPlayer.id;
+
+    const myPlayer = isSpectator ? null : players[myPlayerIndex - 1];
+    const opponentPlayer = isSpectator ? null : players[myPlayerIndex === 1 ? 1 : 0];
+    const isMyTurn = !isSpectator && myPlayer && currentPlayerId === myPlayer.id;
 
     const myPseudo = myPlayer?.pseudo || `Joueur ${myPlayerIndex}`;
     const opponentPseudo = opponentPlayer?.pseudo || `Joueur ${myPlayerIndex === 1 ? 2 : 1}`;
-    const currentPseudo = currentPlayerId === myPlayer?.id ? myPseudo : opponentPseudo;
+    const currentPlayerData = players.find(p => p.id === currentPlayerId);
+    const currentPseudo = currentPlayerData?.pseudo || `Joueur ${currentPlayerId}`;
 
-    const allLinesInvalid = heldStones && myPlayer && myPlayer.patternLines.every((line, i) => {
+    const allLinesInvalid = !isSpectator && heldStones && myPlayer && myPlayer.patternLines.every((line, i) => {
         const colIndex = WALL_ORDER[i].indexOf(heldStones.type);
         return (
             myPlayer.wall[i][colIndex] !== null ||
@@ -94,6 +103,9 @@ const Game = () => {
             <div className={styles.gameOverOverlay}>
                 <div className={styles.finalModal}>
                     <h2>🏆 Victoire de {winnerPseudo} 🏆</h2>
+                    {isSpectator && (
+                        <p className={styles.spectatorNote}>👁 Vous étiez spectateur de cette partie</p>
+                    )}
                     <div className={styles.resultsContainer}>
                         {sorted.map(p => (
                             <div key={p.id} className={styles.playerResultCard}>
@@ -116,21 +128,23 @@ const Game = () => {
                         ))}
                     </div>
                     <div className={styles.gameOverActions}>
-                        <Button
-                            variant="primary"
-                            size="large"
-                            onClick={handleRematch}
-                            disabled={rematchRequested}
-                        >
-                            {rematchRequested
-                                ? `⏳ En attente… (${rematchVotes}/2)`
-                                : '🔁 Revanche'}
-                        </Button>
+                        {!isSpectator && (
+                            <Button
+                                variant="primary"
+                                size="large"
+                                onClick={handleRematch}
+                                disabled={rematchRequested}
+                            >
+                                {rematchRequested
+                                    ? `⏳ En attente… (${rematchVotes}/2)`
+                                    : '🔁 Revanche'}
+                            </Button>
+                        )}
                         <Button variant="secondary" size="large" onClick={() => navigate('/')}>
                             Menu Principal
                         </Button>
                     </div>
-                    {rematchRequested && rematchVotes < 2 && (
+                    {!isSpectator && rematchRequested && rematchVotes < 2 && (
                         <p className={styles.rematchHint}>
                             En attente que {opponentPseudo} accepte la revanche…
                         </p>
@@ -141,27 +155,42 @@ const Game = () => {
     }
 
     const renderPlayerBoard = (p, isMe) => {
-        const pseudo = p.pseudo || (isMe ? `Joueur ${myPlayerIndex}` : `Joueur ${myPlayerIndex === 1 ? 2 : 1}`);
+        const pseudo = p.pseudo || `Joueur ${p.id}`;
+        const isActive = currentPlayerId === p.id;
+
         return (
-            <div key={p.id} className={`${styles.playerBoard} ${currentPlayerId === p.id ? styles.active : ''} ${!isMe ? styles.opponent : ''}`}>
+            <div
+                key={p.id}
+                className={`
+                    ${styles.playerBoard}
+                    ${isActive ? styles.active : ''}
+                    ${!isMe && !isSpectator ? styles.opponent : ''}
+                    ${isSpectator && isActive ? styles.spectatorActive : ''}
+                    ${isSpectator && !isActive ? styles.spectatorInactive : ''}
+                `}
+            >
                 <h3>
-                    {isMe ? `⭐ ${pseudo}` : `👤 ${pseudo}`}
+                    {isSpectator
+                        ? (isActive ? `▶ ${pseudo}` : `${pseudo}`)
+                        : (isMe ? `⭐ ${pseudo}` : `👤 ${pseudo}`)
+                    }
                     {' '}| Score : {p.score}
-                    {isMyTurn && isMe && <span className={styles.yourTurnBadge}>Votre tour</span>}
+                    {isActive && !isSpectator && isMe && <span className={styles.yourTurnBadge}>Votre tour</span>}
+                    {isActive && <span className={styles.activeTurnDot} />}
                 </h3>
                 <div className={styles.boardGrid}>
                     <div className={styles.patterns}>
                         {p.patternLines.map((line, i) => {
-                            const colIndex = heldStones ? WALL_ORDER[i].indexOf(heldStones.type) : -1;
-                            const isInvalid = heldStones && (
+                            const colIndex = heldStones && !isSpectator ? WALL_ORDER[i].indexOf(heldStones.type) : -1;
+                            const isInvalid = !isSpectator && heldStones && (
                                 p.wall[i][colIndex] !== null ||
                                 line.some(s => s !== null && s !== heldStones.type)
                             );
-                            const canPlace = isMe && isMyTurn && !!heldStones && !isInvalid;
+                            const canPlace = isMe && isMyTurn && !!heldStones && !isInvalid && !isSpectator;
                             return (
                                 <div
                                     key={i}
-                                    className={`${styles.line} ${isInvalid ? styles.invalid : ''} ${canPlace ? styles.canPlace : ''} ${!isMyTurn || !isMe ? styles.noHover : ''}`}
+                                    className={`${styles.line} ${isInvalid ? styles.invalid : ''} ${canPlace ? styles.canPlace : ''} ${(!isMyTurn || !isMe || isSpectator) ? styles.noHover : ''}`}
                                     onClick={() => canPlace && socket.emit('place_stones', { lineIndex: i })}
                                 >
                                     <div className={styles.lineSlots}>
@@ -205,7 +234,13 @@ const Game = () => {
 
     return (
         <div className={styles.gameContainer}>
-            {opponentDisconnected && (
+            {isSpectator && (
+                <div className={styles.spectatorBanner}>
+                    👁 Mode spectateur — vous observez la partie
+                </div>
+            )}
+
+            {!isSpectator && opponentDisconnected && (
                 <div className={styles.disconnectBanner}>
                     ⚠️ {opponentPseudo} s'est déconnecté(e)… En attente de reconnexion
                 </div>
@@ -213,12 +248,15 @@ const Game = () => {
 
             <header className={styles.header}>
                 <div className={styles.turnBanner}>
-                    {isMyTurn
-                        ? <span className={styles.myTurn}>🟢 Votre tour, {myPseudo}</span>
-                        : <span className={styles.opponentTurn}>⏳ Tour de {currentPseudo}</span>}
+                    {isSpectator
+                        ? <span className={styles.spectatorTurn}>👁 Tour de {currentPseudo}</span>
+                        : isMyTurn
+                            ? <span className={styles.myTurn}>🟢 Votre tour, {myPseudo}</span>
+                            : <span className={styles.opponentTurn}>⏳ Tour de {currentPseudo}</span>
+                    }
                 </div>
                 <div className={styles.headerActions}>
-                    {heldStones && (
+                    {!isSpectator && heldStones && (
                         <div className={styles.hand}>
                             <span>Main : {heldStones.count}×</span>
                             <Stone stoneType={heldStones.type} size="small" />
@@ -259,17 +297,17 @@ const Game = () => {
             )}
 
             <main className={styles.mainLayout}>
-                <section className={`${styles.commonArea} ${!isMyTurn ? styles.disabled : ''}`}>
+                <section className={`${styles.commonArea} ${(!isMyTurn || isSpectator) ? styles.disabled : ''}`}>
                     <div className={styles.factories}>
                         {factories.map((stones, i) => (
                             <div
                                 key={i}
-                                className={`${styles.factory} ${!isMyTurn || heldStones ? styles.noHover : ''}`}
+                                className={`${styles.factory} ${(!isMyTurn || heldStones || isSpectator) ? styles.noHover : ''}`}
                             >
                                 {stones.map((s, j) => (
                                     <div
                                         key={j}
-                                        onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_factory', { factoryIndex: i, stoneType: s })}
+                                        onClick={() => !isSpectator && isMyTurn && !heldStones && socket.emit('pick_from_factory', { factoryIndex: i, stoneType: s })}
                                     >
                                         <Stone stoneType={s} size="medium" />
                                     </div>
@@ -277,11 +315,11 @@ const Game = () => {
                             </div>
                         ))}
                     </div>
-                    <div className={`${styles.center} ${!isMyTurn || heldStones ? styles.noHover : ''}`}>
+                    <div className={`${styles.center} ${(!isMyTurn || heldStones || isSpectator) ? styles.noHover : ''}`}>
                         {center.map((s, i) => (
                             <div
                                 key={i}
-                                onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_center', { stoneType: s })}
+                                onClick={() => !isSpectator && isMyTurn && !heldStones && socket.emit('pick_from_center', { stoneType: s })}
                             >
                                 <Stone stoneType={s} size="small" />
                             </div>
@@ -290,8 +328,13 @@ const Game = () => {
                 </section>
 
                 <section className={styles.playersContainer}>
-                    {myPlayer && renderPlayerBoard(myPlayer, true)}
-                    {opponentPlayer && renderPlayerBoard(opponentPlayer, false)}
+                    {isSpectator
+                        ? players.map(p => renderPlayerBoard(p, false))
+                        : <>
+                            {myPlayer && renderPlayerBoard(myPlayer, true)}
+                            {opponentPlayer && renderPlayerBoard(opponentPlayer, false)}
+                        </>
+                    }
                 </section>
             </main>
         </div>

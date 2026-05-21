@@ -80,6 +80,12 @@ const Lobby = () => {
         socket.emit('rejoin_room', { roomId, pseudo: validPseudo });
     };
 
+    const handleSpectate = (roomId) => {
+        sessionStorage.setItem('roomId', roomId);
+        sessionStorage.removeItem('pseudo');
+        socket.emit('join_as_spectator', { roomId });
+    };
+
     if (waitingRoomId) {
         return (
             <div className={styles.lobby}>
@@ -118,6 +124,7 @@ const Lobby = () => {
 
     const availableRooms = rooms.filter(r => r.playerCount < 2 && r.status === 'WAITING');
     const reconnectableRooms = rooms.filter(r => r.hasDisconnected && r.status !== 'WAITING');
+    const spectateableRooms = rooms.filter(r => r.playerCount === 2 && r.status === 'PLAYING' && !r.hasDisconnected);
 
     return (
         <div className={styles.lobby}>
@@ -156,6 +163,7 @@ const Lobby = () => {
                     ➕ Créer une nouvelle partie
                 </Button>
 
+                {/* Parties disponibles à rejoindre */}
                 <div className={styles.roomList}>
                     <h3 className={styles.roomListTitle}>Parties disponibles</h3>
                     {availableRooms.length === 0 ? (
@@ -180,6 +188,7 @@ const Lobby = () => {
                     )}
                 </div>
 
+                {/* Reconnexion possible */}
                 {reconnectableRooms.length > 0 && (
                     <div className={styles.roomList}>
                         <h3 className={styles.roomListTitle}>🔌 Reconnexion possible</h3>
@@ -193,6 +202,31 @@ const Lobby = () => {
                                 </div>
                                 <Button variant="primary" size="small" onClick={() => handleRejoin(room.id)}>
                                     🔁 Reprendre
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Parties en cours — mode spectateur */}
+                {spectateableRooms.length > 0 && (
+                    <div className={styles.roomList}>
+                        <h3 className={styles.roomListTitle}>👁 Parties en cours</h3>
+                        {spectateableRooms.map(room => (
+                            <div key={room.id} className={styles.roomCard}>
+                                <div className={styles.roomInfo}>
+                                    <span className={styles.roomName}>{room.name}</span>
+                                    <span className={styles.roomPlayers}>
+                                        <span className={styles.dotPlaying} /> En cours
+                                        {room.spectatorCount > 0 && (
+                                            <span className={styles.spectatorCount}>
+                                                {' '}— 👁 {room.spectatorCount} spectateur{room.spectatorCount > 1 ? 's' : ''}
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                                <Button variant="ghost" size="small" onClick={() => handleSpectate(room.id)}>
+                                    👁 Regarder
                                 </Button>
                             </div>
                         ))}
