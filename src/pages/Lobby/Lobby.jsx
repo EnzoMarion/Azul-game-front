@@ -91,7 +91,9 @@ const Lobby = () => {
         const validPseudo = validatePseudo();
         if (!validPseudo) return;
         sessionStorage.setItem("roomId", roomId);
+        sessionStorage.setItem("isRejoin", "true");
         socket.emit("rejoin_room", { roomId, pseudo: validPseudo });
+        socket.once("joined_room", () => navigate("/game"));
     };
 
     const handleSpectate = (roomId) => {

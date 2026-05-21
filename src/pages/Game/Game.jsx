@@ -34,10 +34,12 @@ const Game = () => {
     useEffect(() => {
         const roomId = sessionStorage.getItem("roomId");
         const pseudo = sessionStorage.getItem("pseudo");
+        const isRejoin = sessionStorage.getItem("isRejoin") === "true";
+        sessionStorage.removeItem("isRejoin");
 
         if (isSpectator) {
             socket.emit("request_state", { roomId });
-        } else if (roomId && pseudo) {
+        } else if (isRejoin && roomId && pseudo) {
             socket.emit("rejoin_room", { roomId, pseudo });
         } else {
             socket.emit("request_state", { roomId });
