@@ -1,0 +1,184 @@
+@use "../../styles/base/variables" as *;
+@use "../../styles/base/mixins" as *;
+
+.lobby {
+  min-height: 100vh;
+  @include flex-column-center;
+  padding: $spacing-xl;
+  background: $bg-primary;
+}
+
+.container {
+  max-width: 600px;
+  width: 100%;
+  @include flex-column-center;
+  gap: $spacing-xxl;
+  @include fade-in;
+}
+
+.header {
+  text-align: center;
+  @include flex-column;
+  gap: $spacing-lg;
+}
+
+.title {
+  @include flex-column;
+  gap: $spacing-sm;
+
+  .titleMain {
+    font-size: clamp(36px, 6vw, 56px);
+    font-weight: 700;
+    letter-spacing: 8px;
+    color: $text-primary;
+    text-transform: uppercase;
+  }
+
+  .titleSub {
+    font-size: clamp(16px, 2.5vw, 22px);
+    font-weight: 500;
+    color: $text-secondary;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+}
+
+.subtitle {
+  font-size: 16px;
+  color: $text-secondary;
+  line-height: 1.75;
+}
+
+// Liste des rooms
+.roomList {
+  width: 100%;
+  @include flex-column;
+  gap: $spacing-md;
+}
+
+.roomListTitle {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: $text-secondary;
+  margin-bottom: $spacing-sm;
+}
+
+.roomCard {
+  @include flex-between;
+  padding: $spacing-lg;
+  background: $bg-secondary;
+  border-radius: $radius-lg;
+  border: 1px solid rgba($color-primary, 0.2);
+  @include smooth-transition;
+
+  &:hover {
+    border-color: rgba($color-primary, 0.5);
+    background: rgba($bg-secondary, 0.8);
+  }
+}
+
+.roomInfo {
+  @include flex-column;
+  gap: $spacing-xs;
+}
+
+.roomName {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.roomPlayers {
+  font-size: 13px;
+  color: $text-secondary;
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: $color-time;
+  display: inline-block;
+  box-shadow: 0 0 6px rgba($color-time, 0.8);
+}
+
+.emptyState {
+  text-align: center;
+  padding: $spacing-xxl $spacing-xl;
+  background: $bg-secondary;
+  border-radius: $radius-lg;
+  border: 1px dashed rgba($text-secondary, 0.3);
+
+  p { color: $text-secondary; font-size: 15px; }
+}
+
+.emptyHint {
+  margin-top: $spacing-sm;
+  color: rgba($color-primary, 0.7) !important;
+  font-size: 13px !important;
+}
+
+// Écran d'attente
+.waiting {
+  @include flex-column-center;
+  gap: $spacing-xl;
+  text-align: center;
+}
+
+.stonesAnimation {
+  display: flex;
+  gap: $spacing-lg;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.stoneWrap {
+  animation: floatStone 2s ease-in-out infinite alternate;
+}
+
+@keyframes floatStone {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-10px); }
+}
+
+.waitingTitle {
+  font-size: clamp(24px, 4vw, 36px);
+  font-weight: 700;
+  color: $text-primary;
+  letter-spacing: 2px;
+}
+
+.waitingText {
+  font-size: 16px;
+  color: $text-secondary;
+}
+
+.dots {
+  display: flex;
+  gap: $spacing-sm;
+
+  span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $color-primary;
+    animation: pulse 1.2s ease-in-out infinite;
+
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%       { opacity: 1;   transform: scale(1.2); }
+}
+
+@include respond-to("mobile") {
+  .lobby { padding: $spacing-lg; }
+  .container { gap: $spacing-xl; }
+}

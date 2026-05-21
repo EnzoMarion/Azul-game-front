@@ -6,40 +6,63 @@ import styles from './Game.module.scss';
 import { Button } from '../../components/Button';
 import socket, { myPlayerIndex } from '../../socket';
 
+const WALL_ORDER = [
+    [STONE_TYPES.SPACE, STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME],
+    [STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER],
+    [STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND, STONE_TYPES.REALITY],
+    [STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND],
+    [STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE],
+];
+
 const Game = () => {
     const navigate = useNavigate();
     const [showBag, setShowBag] = useState(false);
     const [game, setGame] = useState(null);
 
     useEffect(() => {
-        socket.emit('request_state');
-        socket.on('game_update', (state) => setGame(state));
-        return () => socket.off('game_update');
+        const roomId = sessionStorage.getItem('roomId');
+        socket.emit('request_state', { roomId });
+
+        const onGameUpdate = (state) => setGame(state);
+        socket.on('game_update', onGameUpdate);
+
+        return () => {
+            socket.off('game_update', onGameUpdate);
+        };
     }, []);
 
-    if (!game) return <p>Chargement...</p>;
+    if (!game) {
+        return (
+            <div className={styles.loadingScreen}>
+                <p className={styles.loadingText}>Connexion à la partie…</p>
+                <div className={styles.loadingDots}>
+                    <span /><span /><span />
+                </div>
+            </div>
+        );
+    }
 
     const { factories, center, players, currentPlayerId, heldStones, gameState, bag } = game;
     const bagStats = (bag || []).reduce((acc, s) => { acc[s] = (acc[s] || 0) + 1; return acc; }, {});
-
-    const WALL_ORDER = [
-        [STONE_TYPES.SPACE, STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME],
-        [STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER],
-        [STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND, STONE_TYPES.REALITY],
-        [STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE, STONE_TYPES.MIND],
-        [STONE_TYPES.MIND, STONE_TYPES.REALITY, STONE_TYPES.POWER, STONE_TYPES.TIME, STONE_TYPES.SPACE],
-    ];
-
     const myPlayer = players[myPlayerIndex - 1];
     const opponentPlayer = players[myPlayerIndex === 1 ? 1 : 0];
     const isMyTurn = myPlayer && currentPlayerId === myPlayer.id;
 
-    if (gameState === "GAME_OVER") {
+    // Vérifie si toutes les lignes pattern sont invalides pour les pierres en main
+    const allLinesInvalid = heldStones && myPlayer && myPlayer.patternLines.every((line, i) => {
+        const colIndex = WALL_ORDER[i].indexOf(heldStones.type);
+        return (
+            myPlayer.wall[i][colIndex] !== null ||
+            line.some(s => s !== null && s !== heldStones.type)
+        );
+    });
+
+    if (gameState === 'GAME_OVER') {
         const sorted = [...players].sort((a, b) => b.score - a.score);
         return (
             <div className={styles.gameOverOverlay}>
                 <div className={styles.finalModal}>
-                    <h2>🏆 VICTOIRE DU JOUEUR {sorted[0].id} 🏆</h2>
+                    <h2>🏆 Victoire du Joueur {sorted[0].id} 🏆</h2>
                     <div className={styles.resultsContainer}>
                         {sorted.map(p => (
                             <div key={p.id} className={styles.playerResultCard}>
@@ -49,7 +72,9 @@ const Game = () => {
                                         <div key={i} className={styles.row}>
                                             {row.map((cell, j) => (
                                                 <div key={j} className={`${styles.cell} ${cell ? styles.filled : ''}`}>
-                                                    {cell ? <Stone stoneType={cell} size="small" /> : <div className={styles.ghost}><Stone stoneType={WALL_ORDER[i][j]} size="small" /></div>}
+                                                    {cell
+                                                        ? <Stone stoneType={cell} size="small" />
+                                                        : <div className={styles.ghost}><Stone stoneType={WALL_ORDER[i][j]} size="small" /></div>}
                                                 </div>
                                             ))}
                                         </div>
@@ -68,11 +93,11 @@ const Game = () => {
     }
 
     const renderPlayerBoard = (p, isMe) => (
-        <div key={p.id} className={`${styles.playerBoard} ${currentPlayerId === p.id ? styles.active : ''}`}>
+        <div key={p.id} className={`${styles.playerBoard} ${currentPlayerId === p.id ? styles.active : ''} ${!isMe ? styles.opponent : ''}`}>
             <h3>
                 {isMe ? `⭐ Vous — Joueur ${myPlayerIndex}` : `👤 Adversaire — Joueur ${myPlayerIndex === 1 ? 2 : 1}`}
-                {' '}| Score: {p.score}
-                {isMyTurn && isMe && <span style={{color: 'green', marginLeft: '8px'}}>← Votre tour</span>}
+                {' '}| Score : {p.score}
+                {isMyTurn && isMe && <span className={styles.yourTurnBadge}>Votre tour</span>}
             </h3>
             <div className={styles.boardGrid}>
                 <div className={styles.patterns}>
@@ -82,13 +107,19 @@ const Game = () => {
                             p.wall[i][colIndex] !== null ||
                             line.some(s => s !== null && s !== heldStones.type)
                         );
+                        const canPlace = isMe && isMyTurn && !!heldStones && !isInvalid;
                         return (
-                            <div key={i}
-                                 className={`${styles.line} ${isInvalid ? styles.invalid : ''}`}
-                                 onClick={() => isMe && heldStones && isMyTurn && socket.emit('place_stones', { lineIndex: i })}
+                            <div
+                                key={i}
+                                className={`${styles.line} ${isInvalid ? styles.invalid : ''} ${canPlace ? styles.canPlace : ''} ${!isMyTurn || !isMe ? styles.noHover : ''}`}
+                                onClick={() => canPlace && socket.emit('place_stones', { lineIndex: i })}
                             >
                                 <div className={styles.lineSlots}>
-                                    {line.map((s, j) => <div key={j} className={styles.slot}>{s && <Stone stoneType={s} size="small" />}</div>)}
+                                    {line.map((s, j) => (
+                                        <div key={j} className={styles.slot}>
+                                            {s && <Stone stoneType={s} size="small" />}
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
                         );
@@ -99,7 +130,9 @@ const Game = () => {
                         <div key={i} className={styles.row}>
                             {row.map((cell, j) => (
                                 <div key={j} className={`${styles.cell} ${cell ? styles.filled : ''}`}>
-                                    {cell ? <Stone stoneType={cell} size="small" /> : <div className={styles.ghost}><Stone stoneType={WALL_ORDER[i][j]} size="small" /></div>}
+                                    {cell
+                                        ? <Stone stoneType={cell} size="small" />
+                                        : <div className={styles.ghost}><Stone stoneType={WALL_ORDER[i][j]} size="small" /></div>}
                                 </div>
                             ))}
                         </div>
@@ -110,7 +143,9 @@ const Game = () => {
                 {Array(7).fill(null).map((_, i) => (
                     <div key={i} className={styles.floorSlot}>
                         <span className={styles.penalty}>{-1 * (i < 2 ? 1 : i < 5 ? 2 : 3)}</span>
-                        {p.floorLine[i] === "FIRST_PLAYER" ? <div className={styles.firstMarker}>1st</div> : p.floorLine[i] && <Stone stoneType={p.floorLine[i]} size="small" />}
+                        {p.floorLine[i] === 'FIRST_PLAYER'
+                            ? <div className={styles.firstMarker}>1st</div>
+                            : p.floorLine[i] && <Stone stoneType={p.floorLine[i]} size="small" />}
                     </div>
                 ))}
             </div>
@@ -120,11 +155,31 @@ const Game = () => {
     return (
         <div className={styles.gameContainer}>
             <header className={styles.header}>
-                <h1>{isMyTurn ? '🟢 Votre tour' : "⏳ Tour de l'adversaire"}</h1>
-                <Button size="small" onClick={() => setShowBag(true)}>
-                    👜 Voir le Sac ({bag?.length || 0})
-                </Button>
-                {heldStones && <div className={styles.hand}>Main: {heldStones.count}x <Stone stoneType={heldStones.type} size="small" /></div>}
+                <div className={styles.turnBanner}>
+                    {isMyTurn
+                        ? <span className={styles.myTurn}>🟢 Votre tour</span>
+                        : <span className={styles.opponentTurn}>⏳ Tour de l'adversaire</span>}
+                </div>
+                <div className={styles.headerActions}>
+                    {heldStones && (
+                        <div className={styles.hand}>
+                            <span>Main : {heldStones.count}×</span>
+                            <Stone stoneType={heldStones.type} size="small" />
+                            {(allLinesInvalid || isMyTurn) && (
+                                <Button
+                                    variant="ghost"
+                                    size="small"
+                                    onClick={() => socket.emit('discard_to_floor')}
+                                >
+                                    ❌ Défausser en pénalité
+                                </Button>
+                            )}
+                        </div>
+                    )}
+                    <Button size="small" onClick={() => setShowBag(true)}>
+                        👜 Sac ({bag?.length || 0})
+                    </Button>
+                </div>
             </header>
 
             {showBag && (
@@ -135,11 +190,11 @@ const Game = () => {
                             {Object.entries(bagStats).map(([type, count]) => (
                                 <div key={type} className={styles.bagItem}>
                                     <Stone stoneType={type} size="medium" />
-                                    <span>x{count}</span>
+                                    <span>×{count}</span>
                                 </div>
                             ))}
                         </div>
-                        <Button variant="secondary" size="small" onClick={() => setShowBag(false)} className={styles.closeBagBtn}>
+                        <Button variant="secondary" size="small" onClick={() => setShowBag(false)}>
                             Fermer
                         </Button>
                     </div>
@@ -147,21 +202,30 @@ const Game = () => {
             )}
 
             <main className={styles.mainLayout}>
-                <section className={styles.commonArea}>
+                <section className={`${styles.commonArea} ${!isMyTurn ? styles.disabled : ''}`}>
                     <div className={styles.factories}>
                         {factories.map((stones, i) => (
-                            <div key={i} className={styles.factory}>
+                            <div
+                                key={i}
+                                className={`${styles.factory} ${!isMyTurn || heldStones ? styles.noHover : ''}`}
+                            >
                                 {stones.map((s, j) => (
-                                    <div key={j} onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_factory', { factoryIndex: i, stoneType: s })}>
+                                    <div
+                                        key={j}
+                                        onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_factory', { factoryIndex: i, stoneType: s })}
+                                    >
                                         <Stone stoneType={s} size="medium" />
                                     </div>
                                 ))}
                             </div>
                         ))}
                     </div>
-                    <div className={styles.center}>
+                    <div className={`${styles.center} ${!isMyTurn || heldStones ? styles.noHover : ''}`}>
                         {center.map((s, i) => (
-                            <div key={i} onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_center', { stoneType: s })}>
+                            <div
+                                key={i}
+                                onClick={() => isMyTurn && !heldStones && socket.emit('pick_from_center', { stoneType: s })}
+                            >
                                 <Stone stoneType={s} size="small" />
                             </div>
                         ))}

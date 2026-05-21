@@ -1,4 +1,5 @@
 @use "../../styles/base/variables" as *;
+@use "../../styles/base/mixins" as *;
 
 .gameContainer {
     min-height: 100vh;
@@ -442,4 +443,89 @@ $tile-size-tablet: 35px;
         width: 90%;
         padding: 1.5rem;
     }
+}
+
+.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    filter: grayscale(40%);
+    transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+.noHover {
+    cursor: default !important;
+    pointer-events: none;
+}
+
+.canPlace {
+    cursor: pointer;
+    border-color: rgba($color-primary, 0.6) !important;
+}
+
+.yourTurnBadge {
+    margin-left: $spacing-sm;
+    padding: 2px $spacing-sm;
+    background: rgba($color-time, 0.2);
+    color: $color-time;
+    border-radius: $radius-sm;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.turnBanner {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.myTurn {
+    color: $color-time;
+    text-shadow: 0 0 10px rgba($color-time, 0.8), 0 0 20px rgba($color-time, 0.4);
+}
+
+.opponentTurn {
+    color: $text-secondary;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+}
+
+// Écran de chargement
+.loadingScreen {
+    min-height: 100vh;
+    background: $bg-primary;
+    @include flex-column-center;
+    gap: $spacing-xl;
+}
+
+.loadingText {
+    font-size: 18px;
+    color: $text-secondary;
+    letter-spacing: 2px;
+}
+
+.loadingDots {
+    display: flex;
+    gap: $spacing-sm;
+
+    span {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: $color-primary;
+        animation: pulse 1.2s ease-in-out infinite;
+
+        &:nth-child(2) { animation-delay: 0.2s; }
+        &:nth-child(3) { animation-delay: 0.4s; }
+    }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50%       { opacity: 1;   transform: scale(1.2); }
 }

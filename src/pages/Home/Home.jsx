@@ -1,33 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/Button";
 import { Stone } from "../../components/Stones";
 import { STONE_TYPES } from "../../constants";
 import styles from "./Home.module.scss";
-import socket from "../../socket";
 
 const Home = () => {
   const navigate = useNavigate();
-  const [waiting, setWaiting] = useState(false);
-
-  useEffect(() => {
-    socket.on('lobby_state', (state) => {
-      if (state.status === 'playing') {
-        navigate("/game");
-      }
-    });
-
-    return () => socket.off('lobby_state');
-  }, [navigate]); // ← supprimé "dispatch" ici
-
-  const handleStartGame = () => {
-    setWaiting(true);
-    socket.emit('join_game', 'Joueur');
-  };
-
-  const handleViewRules = () => {
-    navigate("/rules");
-  };
 
   return (
       <div className={styles.home}>
@@ -49,14 +28,10 @@ const Home = () => {
           </div>
 
           <div className={styles.actions}>
-            {waiting ? (
-                <p>En attente d'un second joueur...</p>
-            ) : (
-                <Button variant="primary" size="large" onClick={handleStartGame}>
-                  Start New Game
-                </Button>
-            )}
-            <Button variant="ghost" size="large" onClick={handleViewRules}>
+            <Button variant="primary" size="large" onClick={() => navigate("/lobby")}>
+              Start New Game
+            </Button>
+            <Button variant="ghost" size="large" onClick={() => navigate("/rules")}>
               View Rules
             </Button>
           </div>
