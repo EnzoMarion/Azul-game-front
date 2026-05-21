@@ -29,6 +29,11 @@ const Game = () => {
     const [rematchVotes, setRematchVotes] = useState(0);
     const [rematchRequested, setRematchRequested] = useState(false);
 
+    const [forceGameOver, setForceGameOver] = useState(null);
+    const [disconnectCountdown, setDisconnectCountdown] = useState(null);
+    const [voteRequest, setVoteRequest] = useState(null);
+    const [hasVoted, setHasVoted] = useState(false);
+
     const isSpectator = myPlayerIndex === 0;
 
     useEffect(() => {
@@ -53,16 +58,147 @@ const Game = () => {
         const onOpponentDisconnected = () => { if (!isSpectator) setOpponentDisconnected(true); };
         const onRematchVotes = (count) => setRematchVotes(count);
 
+        const onForceGameOver = (data) => {
+            setForceGameOver(data);
+            setDisconnectCountdown(null);
+            setVoteRequest(null);
+        };
+
+        let countdownInterval = null;
+        const onDisconnectCountdown = (data) => {
+            setDisconnectCountdown(data);
+            if (countdownInterval) clearInterval(countdownInterval);
+            let remaining = data.seconds;
+            countdownInterval = setInterval(() => {
+                remaining--;
+                setDisconnectCountdown(prev => prev ? { ...prev, seconds: remaining } : null);
+                if (remaining <= 0) clearInterval(countdownInterval);
+            }, 1000);
+        };
+
+        const onDisconnectCountdownCancelled = () => {
+            if (countdownInterval) clearInterval(countdownInterval);
+            setDisconnectCountdown(null);
+        };
+
+        const onVoteRequest = (data) => {
+            setVoteRequest(data);
+            setHasVoted(false);
+        };
+
+        const onVoteCancelled = () => setVoteRequest(null);
+
+        const onGameContinued = () => {
+            setVoteRequest(null);
+            setDisconnectCountdown(null);
+            setOpponentDisconnected(false);
+        };
+
+        const onOpponentReconnected = () => {
+            setOpponentDisconnected(false);
+            setDisconnectCountdown(null);
+        };
+
         socket.on("game_update", onGameUpdate);
         socket.on("opponent_disconnected", onOpponentDisconnected);
+        socket.on("opponent_reconnected", onOpponentReconnected);
         socket.on("rematch_votes", onRematchVotes);
+        socket.on("force_game_over", onForceGameOver);
+        socket.on("disconnect_countdown", onDisconnectCountdown);
+        socket.on("disconnect_countdown_cancelled", onDisconnectCountdownCancelled);
+        socket.on("disconnection_vote_request", onVoteRequest);
+        socket.on("disconnection_vote_cancelled", onVoteCancelled);
+        socket.on("game_continued", onGameContinued);
 
         return () => {
+            if (countdownInterval) clearInterval(countdownInterval);
             socket.off("game_update", onGameUpdate);
             socket.off("opponent_disconnected", onOpponentDisconnected);
+            socket.off("opponent_reconnected", onOpponentReconnected);
             socket.off("rematch_votes", onRematchVotes);
+            socket.off("force_game_over", onForceGameOver);
+            socket.off("disconnect_countdown", onDisconnectCountdown);
+            socket.off("disconnect_countdown_cancelled", onDisconnectCountdownCancelled);
+            socket.off("disconnection_vote_request", onVoteRequest);
+            socket.off("disconnection_vote_cancelled", onVoteCancelled);
+            socket.off("game_continued", onGameContinued);
         };
     }, []);
+
+    const handleLeave = () => {
+        const roomId = sessionStorage.getItem("roomId");
+        sessionStorage.setItem("isRejoin", "true");
+        socket.emit("leave_room", { roomId });
+        navigate("/");
+    };
+
+    if (forceGameOver) {
+        return (
+            <div className={styles.gameOverOverlay}>
+                <div className={styles.finalModal}>
+                    {forceGameOver.reason === "disconnect" && forceGameOver.winnerPseudo ? (
+                        <>
+                            <h2>🏆 Victoire de {forceGameOver.winnerPseudo}</h2>
+                            <p style={{ color: "var(--color-text-muted)", marginTop: "0.5rem" }}>
+                                L'adversaire ne s'est pas reconnecté dans les 60 secondes.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <h2>❌ Partie annulée</h2>
+                            <p style={{ color: "var(--color-text-muted)", marginTop: "0.5rem" }}>
+                                La majorité des joueurs a choisi d'arrêter la partie.
+                            </p>
+                        </>
+                    )}
+                    <div className={styles.gameOverActions} style={{ marginTop: "1.5rem" }}>
+                        <Button variant="primary" size="large" onClick={() => {
+                            sessionStorage.removeItem("isRejoin");
+                            sessionStorage.removeItem("roomId");
+                            navigate("/");
+                        }}>
+                            Retour au lobby
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (voteRequest && !isSpectator) {
+        const roomId = sessionStorage.getItem("roomId");
+        const sendVote = (choice) => {
+            socket.emit("disconnection_vote", { roomId, choice });
+            setHasVoted(true);
+        };
+        return (
+            <div className={styles.gameOverOverlay}>
+                <div className={styles.finalModal}>
+                    <h2>⚠️ {voteRequest.disconnectedPseudo} s'est déconnecté</h2>
+                    <p style={{ color: "var(--color-text-muted)", margin: "0.5rem 0" }}>
+                        Que souhaitez-vous faire ?
+                    </p>
+                    <p style={{ fontSize: "0.8rem", opacity: 0.5 }}>
+                        Résolution automatique dans {voteRequest.timeoutSeconds}s
+                    </p>
+                    {hasVoted ? (
+                        <p style={{ marginTop: "1rem", color: "var(--color-success)" }}>
+                            ✅ Vote envoyé — en attente des autres joueurs…
+                        </p>
+                    ) : (
+                        <div style={{ display: "flex", gap: "1rem", justifyContent: "center", marginTop: "1.5rem", flexWrap: "wrap" }}>
+                            <Button variant="primary" size="large" onClick={() => sendVote("continue")}>
+                                ▶ Continuer à {voteRequest.remainingPlayers.length} joueurs
+                            </Button>
+                            <Button variant="secondary" size="large" onClick={() => sendVote("cancel")}>
+                                ❌ Annuler la partie
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     if (!game) {
         return (
@@ -142,7 +278,11 @@ const Game = () => {
                                 {rematchRequested ? `⏳ En attente… (${rematchVotes}/${totalPlayers})` : "🔁 Revanche"}
                             </Button>
                         )}
-                        <Button variant="secondary" size="large" onClick={() => navigate("/")}>
+                        <Button variant="secondary" size="large" onClick={() => {
+                            sessionStorage.removeItem("isRejoin");
+                            sessionStorage.removeItem("roomId");
+                            navigate("/");
+                        }}>
                             Menu Principal
                         </Button>
                     </div>
@@ -235,8 +375,14 @@ const Game = () => {
             {isSpectator && (
                 <div className={styles.spectatorBanner}>👁 Mode spectateur — vous observez la partie</div>
             )}
-            {!isSpectator && opponentDisconnected && (
+            {!isSpectator && opponentDisconnected && !disconnectCountdown && (
                 <div className={styles.disconnectBanner}>⚠️ Un joueur s'est déconnecté… En attente de reconnexion</div>
+            )}
+            {disconnectCountdown && !isSpectator && (
+                <div className={styles.disconnectBanner}>
+                    ⏳ {disconnectCountdown.disconnectedPseudo} déconnecté —
+                    victoire automatique dans <strong>{disconnectCountdown.seconds}s</strong>
+                </div>
             )}
 
             <header className={styles.header}>
@@ -263,6 +409,11 @@ const Game = () => {
                     <Button size="small" onClick={() => setShowBag(true)}>
                         👜 Sac ({bag?.length || 0})
                     </Button>
+                    {!isSpectator && (
+                        <Button variant="ghost" size="small" onClick={handleLeave}>
+                            🚪 Quitter
+                        </Button>
+                    )}
                 </div>
             </header>
 
