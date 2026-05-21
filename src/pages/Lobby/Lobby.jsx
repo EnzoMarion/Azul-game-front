@@ -10,8 +10,13 @@ const Lobby = () => {
     const navigate = useNavigate();
     const [rooms, setRooms] = useState([]);
     const [waitingRoomId, setWaitingRoomId] = useState(null);
+    const [pseudo, setPseudo] = useState('');
+    const [pseudoError, setPseudoError] = useState('');
 
     useEffect(() => {
+        const saved = sessionStorage.getItem('pseudo');
+        if (saved) setPseudo(saved);
+
         socket.emit('request_rooms');
 
         const onRoomList = (list) => setRooms(list);
@@ -35,18 +40,46 @@ const Lobby = () => {
         };
     }, [navigate]);
 
+    const validatePseudo = () => {
+        const trimmed = pseudo.trim();
+        if (!trimmed) {
+            setPseudoError('Entre un pseudo avant de continuer');
+            return null;
+        }
+        if (trimmed.length < 2) {
+            setPseudoError('Le pseudo doit faire au moins 2 caractères');
+            return null;
+        }
+        setPseudoError('');
+        sessionStorage.setItem('pseudo', trimmed);
+        return trimmed;
+    };
+
     const handleCreate = () => {
-        socket.emit('create_room', { pseudo: 'Joueur' });
+        const validPseudo = validatePseudo();
+        if (!validPseudo) return;
+
+        socket.emit('create_room', { pseudo: validPseudo });
         socket.once('joined_room', (roomId) => {
             setWaitingRoomId(roomId);
         });
     };
 
     const handleJoin = (roomId) => {
-        socket.emit('join_room', { roomId, pseudo: 'Joueur' });
+        const validPseudo = validatePseudo();
+        if (!validPseudo) return;
+
+        socket.emit('join_room', { roomId, pseudo: validPseudo });
     };
 
-    // Écran d'attente après création d'une partie
+    const handleRejoin = (roomId) => {
+        const validPseudo = validatePseudo();
+        if (!validPseudo) return;
+
+        sessionStorage.setItem('roomId', roomId);
+        socket.emit('rejoin_room', { roomId, pseudo: validPseudo });
+    };
+
     if (waitingRoomId) {
         return (
             <div className={styles.lobby}>
@@ -60,6 +93,9 @@ const Lobby = () => {
                             ))}
                         </div>
                         <h2 className={styles.waitingTitle}>Partie créée !</h2>
+                        <p className={styles.waitingText}>
+                            Connecté en tant que <strong>{pseudo.trim()}</strong>
+                        </p>
                         <p className={styles.waitingText}>En attente d'un second joueur…</p>
                         <div className={styles.dots}>
                             <span /><span /><span />
@@ -80,6 +116,9 @@ const Lobby = () => {
         );
     }
 
+    const availableRooms = rooms.filter(r => r.playerCount < 2 && r.status === 'WAITING');
+    const reconnectableRooms = rooms.filter(r => r.hasDisconnected && r.status !== 'WAITING');
+
     return (
         <div className={styles.lobby}>
             <div className={styles.container}>
@@ -91,35 +130,74 @@ const Lobby = () => {
                     <p className={styles.subtitle}>Rejoins une partie ou crée la tienne</p>
                 </header>
 
+                <div className={styles.pseudoField}>
+                    <label htmlFor="pseudo" className={styles.pseudoLabel}>
+                        Ton pseudo
+                    </label>
+                    <input
+                        id="pseudo"
+                        type="text"
+                        className={`${styles.pseudoInput} ${pseudoError ? styles.inputError : ''}`}
+                        placeholder="Entre ton pseudo…"
+                        value={pseudo}
+                        maxLength={20}
+                        onChange={(e) => {
+                            setPseudo(e.target.value);
+                            if (pseudoError) setPseudoError('');
+                        }}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+                    />
+                    {pseudoError && (
+                        <span className={styles.errorMsg}>{pseudoError}</span>
+                    )}
+                </div>
+
                 <Button variant="primary" size="large" onClick={handleCreate}>
                     ➕ Créer une nouvelle partie
                 </Button>
 
                 <div className={styles.roomList}>
                     <h3 className={styles.roomListTitle}>Parties disponibles</h3>
-                    {rooms.filter(r => r.playerCount < 2 && r.status === 'WAITING').length === 0 ? (
+                    {availableRooms.length === 0 ? (
                         <div className={styles.emptyState}>
                             <p>Aucune partie en attente.</p>
                             <p className={styles.emptyHint}>Crée la première !</p>
                         </div>
                     ) : (
-                        rooms
-                            .filter(r => r.playerCount < 2 && r.status === 'WAITING')
-                            .map(room => (
-                                <div key={room.id} className={styles.roomCard}>
-                                    <div className={styles.roomInfo}>
-                                        <span className={styles.roomName}>{room.name}</span>
-                                        <span className={styles.roomPlayers}>
-                      <span className={styles.dot} /> {room.playerCount}/2 — ⏳ En attente
-                    </span>
-                                    </div>
-                                    <Button variant="secondary" size="small" onClick={() => handleJoin(room.id)}>
-                                        Rejoindre
-                                    </Button>
+                        availableRooms.map(room => (
+                            <div key={room.id} className={styles.roomCard}>
+                                <div className={styles.roomInfo}>
+                                    <span className={styles.roomName}>{room.name}</span>
+                                    <span className={styles.roomPlayers}>
+                                        <span className={styles.dot} /> {room.playerCount}/2 — ⏳ En attente
+                                    </span>
                                 </div>
-                            ))
+                                <Button variant="secondary" size="small" onClick={() => handleJoin(room.id)}>
+                                    Rejoindre
+                                </Button>
+                            </div>
+                        ))
                     )}
                 </div>
+
+                {reconnectableRooms.length > 0 && (
+                    <div className={styles.roomList}>
+                        <h3 className={styles.roomListTitle}>🔌 Reconnexion possible</h3>
+                        {reconnectableRooms.map(room => (
+                            <div key={room.id} className={styles.roomCard}>
+                                <div className={styles.roomInfo}>
+                                    <span className={styles.roomName}>{room.name}</span>
+                                    <span className={styles.roomPlayers}>
+                                        <span className={styles.dotDisconnected} /> Partie en cours — joueur déconnecté
+                                    </span>
+                                </div>
+                                <Button variant="primary" size="small" onClick={() => handleRejoin(room.id)}>
+                                    🔁 Reprendre
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 <Button variant="ghost" size="small" onClick={() => navigate("/")}>
                     ← Retour
